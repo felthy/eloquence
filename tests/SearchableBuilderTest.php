@@ -332,6 +332,55 @@ class SearchableBuilderTest extends \PHPUnit_Framework_TestCase {
         $this->assertEquals($bindings, $query->getBindings());
     }
 
+    /**
+     * @test
+     */
+    public function it_accepts_fulltext_and_threshold_args_when_columns_arg_omitted()
+    {
+        $sql = 'select * from (select `users`.*, max(case when `users`.`first_name` = ? then 15 else 0 end '.
+            '+ case when `users`.`first_name` like ? then 5 else 0 end '.
+            '+ case when `users`.`first_name` like ? then 1 else 0 end '.
+            '+ case when `users`.`last_name` = ? then 75 else 0 end '.
+            '+ case when `users`.`last_name` like ? then 25 else 0 end '.
+            '+ case when `users`.`last_name` like ? then 5 else 0 end '.
+            '+ case when `users`.`email` = ? then 150 else 0 end '.
+            '+ case when `users`.`email` like ? then 50 else 0 end '.
+            '+ case when `users`.`email` like ? then 10 else 0 end '.
+            '+ case when `profiles`.`name` = ? then 30 else 0 end '.
+            '+ case when `profiles`.`name` like ? then 10 else 0 end '.
+            '+ case when `profiles`.`name` like ? then 2 else 0 end) '.
+            'as relevance from `users` left join `profiles` on `users`.`profile_id` = `profiles`.`id` '.
+            'where (`users`.`first_name` like ? or `users`.`last_name` like ? or `users`.`email` like ? or `profiles`.`name` like ?) '.
+            'group by `users`.`primary_key`) as `users` where `relevance` >= 50 order by `relevance` desc';
+
+        $bindings = [ 'jarek', 'jarek%', '%jarek%', 'jarek', 'jarek%', '%jarek%', 'jarek', 'jarek%', '%jarek%', 'jarek', 'jarek%', '%jarek%', '%jarek%', '%jarek%', '%jarek%', '%jarek%' ];
+
+        $model = $this->getModel();
+
+        $query = $model->search('jarek', true, 50);
+
+        $this->assertEquals($sql, $query->toSql());
+        $this->assertEquals($bindings, $query->getBindings());
+
+        $sql = 'select * from (select `users`.*, max(case when `users`.`first_name` = ? then 15 else 0 end '.
+            '+ case when `users`.`last_name` = ? then 75 else 0 end '.
+            '+ case when `users`.`email` = ? then 150 else 0 end '.
+            '+ case when `profiles`.`name` = ? then 30 else 0 end) as relevance from `users` '.
+            'left join `profiles` on `users`.`profile_id` = `profiles`.`id` where (`users`.`first_name` like ? '.
+            'or `users`.`last_name` like ? or `users`.`email` like ? or `profiles`.`name` like ?) '.
+            'group by `users`.`primary_key`) as `users` where `relevance` >= 40 order by `relevance` desc';
+
+        $bindings = [ 'jarek', 'jarek', 'jarek', 'jarek', 'jarek', 'jarek', 'jarek', 'jarek' ];
+
+        $model = $this->getModel();
+
+        $query = $model->search('jarek', false, 40);
+
+        $this->assertEquals($sql, $query->toSql());
+        $this->assertEquals($bindings, $query->getBindings());
+
+    }
+
     public function getModel($driver = 'MySql')
     {
         $model = new SearchableBuilderUserStub;

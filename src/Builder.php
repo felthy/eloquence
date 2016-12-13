@@ -71,7 +71,12 @@ class Builder extends HookableBuilder
     public function search($query, $columns = null, $fulltext = true, $threshold = null)
     {
         if (is_bool($columns)) {
-            list($fulltext, $columns) = [$columns, []];
+            // caller omitted $columns but passed boolean value for $fulltext
+            list($columns, $fulltext) = [[], $columns];
+            if (func_num_args() == 3) {
+                // caller passed a value for $threshold as well
+                $threshold = func_get_arg(2);
+            }
         }
 
         $parser = static::$parser->make();
